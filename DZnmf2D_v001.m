@@ -812,9 +812,9 @@ if get(H.check_nmf_opt, 'Value') == 1
     %{
     %%test optimum rank using bi-cross-validation (Owen and Perry, 2009)
     BCVsources = nsources;
-    option.iterations=100;
-    option.residual = 1E-20;
-    option.tof = 1E-100;
+    %option.iterations=100;
+    %option.residual = 1E-20;
+    %option.tof = 1E-100;
     
     if get(H.one_dimensional, 'Value') == 1
         input_density = pdps_active; %for 1D samples 
@@ -833,28 +833,30 @@ if get(H.check_nmf_opt, 'Value') == 1
     [A_factorized,A_Weightings,A_numIter,A_tElapsed,A_finalResidual]=DZnmf_loop(A_in,BCVsources,option);
     [B_factorized,B_Weightings,B_numIter,B_tElapsed,B_finalResidual]=DZnmf_loop(B_in,BCVsources,option);
     [C_factorized,C_Weightings,C_numIter,C_tElapsed,C_finalResidual]=DZnmf_loop(C_in,BCVsources,option);
+    
     [D_factorized,D_Weightings,D_numIter,D_tElapsed,D_finalResidual]=DZnmf_loop(D_in,BCVsources,option);
     
     for i=2:BCVsources
+        
         A_out_inv = pinv(A_factorized(:,1:i,i-1));
         A_Weightings_inv = pinv(A_Weightings(1:i,:,i-1));
         D_out = (C_in * A_Weightings_inv) * (A_out_inv * B_in);
-        Residual_D(i-1,1) = norm(D_out - D_in, 'fro');
+        Residual_D(i-1,1) = norm(D_in - D_out, 'fro');
         
         B_out_inv = pinv(B_factorized(:,1:i,i-1));
         B_Weightings_inv = pinv(B_Weightings(1:i,:,i-1));
         C_out = (D_in * B_Weightings_inv) * (B_out_inv * A_in);
-        Residual_C(i-1,1) = norm(C_out - C_in, 'fro');
+        Residual_C(i-1,1) = norm(C_in - C_out, 'fro');
         
         C_out_inv = pinv(C_factorized(:,1:i,i-1));
         C_Weightings_inv = pinv(C_Weightings(1:i,:,i-1));
         B_out = (A_in * C_Weightings_inv) * (C_out_inv * D_in);
-        Residual_B(i-1,1) = norm(B_out - B_in, 'fro');
+        Residual_B(i-1,1) = norm(B_in - B_out, 'fro');
         
         D_out_inv = pinv(D_factorized(:,1:i,i-1));
         D_Weightings_inv = pinv(D_Weightings(1:i,:,i-1));
         A_out = (B_in * D_Weightings_inv) * (D_out_inv * C_in);
-        Residual_A(i-1,1) = norm(A_out - A_in, 'fro');
+        Residual_A(i-1,1) = norm(A_in - A_out, 'fro');
     end
     Residual_sum = Residual_A + Residual_B + Residual_C + Residual_D;
     [min_CV_Tot,optimum_rank_CV_Tot] = min(Residual_sum);
@@ -2490,6 +2492,7 @@ if get(H.two_dimensional, 'Value') == 1
     density_active=sink_density;
     density_active_vector = density_vector_new;
     if get(H.show_sinks, 'value') == 1
+        
         plot_2D_distribution(density_active, X1, Y1, ...
         H.stacked_sink_samples_uipanel, input_variables, color_ramp, contour_var, contour_percentile);
     end
@@ -2718,13 +2721,16 @@ contour_percentile = H.contour_percentile;
 
 
 %open target figures
-finput = figure('units','normalized','position', [0.1 0.1 0.5 0.8]);
+finput = figure('units','normalized','position', [0.1 0.1 0.5 0.8], 'MenuBar', 'figure', 'ToolBar', 'auto');
+
 foutput = figure('units','normalized','position', [0.3 0.1 0.5 0.8]);
 
 %plot if 1D distributions
 if get(H.one_dimensional, 'Value') == 1
 plot_1D_distribution(pdps_active, x_min, x_max, x_int, finput, input_variables);
+set(finput, 'MenuBar', 'figure');
 plot_1D_distribution(source_PDP, x_min, x_max, x_int, foutput, input_variables);
+
 end
 
 %plot if 2D distributions
@@ -2920,7 +2926,7 @@ function [] = plot_1D_distribution ...
     (pdps_active, x_min, x_max, x_int, input_uipanel, input_variables);
 %clear uipanels if they exist
 try child = allchild(input_uipanel);
-    delete (child); 
+    clear map; 
 catch; 
 end;
 x = x_min:x_int:x_max;
@@ -2968,6 +2974,7 @@ end
             ylab = ylabel(h3, 'Normalized Probability' , 'Visible','on');
         
         delete(f);
+        
                 
         
 % --- Executes on button press in compare_sources.
@@ -3002,7 +3009,7 @@ input_variables = H.input_variables;
 color_ramp = H.color_ramp;
 contour_var = H.contour_var;
 contour_percentile = H.contour_percentile;
-
+x = x_min:x_int:x_max;
 
 [filename, pathname] = uigetfile({'*'},'File Selector');
 fullpathname = strcat(pathname, filename);
@@ -3177,15 +3184,20 @@ for i=1:number_of_factorized
     vars(i) = cellstr(strcat('Sources',' ',num2str(i)));
 end
 cross_correlation_comparison=figure
-f.Units = 'normalized'
-f.Position = [0.3536 0.5157 0.6 0.37]
+%f.Units = 'normalized'
+cross_correlation_comparison.Units = 'normalized'
+%f.Position = [0.3536 0.5157 0.6 0.37]
+cross_correlation_comparison.Position = [0.3536 0.5157 0.6 0.37]
 
+table_data_R2 = horzcat(new_names, num2cell(R2));
+header = horzcat('Empirical sources', vars);
+table_data_R2  = vertcat(header, table_data_R2);
 uit = uitable
 uit.Units = 'normalized';
 uit.Position = [0 0 1 1];
-uit.ColumnName = vars; 
-uit.Data = R2;
-uit.RowName = new_names;
+%uit.ColumnName = vars; 
+uit.Data = table_data_R2;
+%uit.RowName = new_names;
 stop = 1
 set(cross_correlation_comparison, 'NumberTitle', 'off', 'Name', 'Cross-correlation of empirical and factorize sources');
 
@@ -3194,15 +3206,18 @@ set(cross_correlation_comparison, 'NumberTitle', 'off', 'Name', 'Cross-correlati
     (empirical_sources, factorized_density, get(H.one_dimensional,'Value'),hObject, Y1, input_variables)
 
 KS_comparison=figure
-f.Units = 'normalized'
-f.Position = [0.3536 0.5157 0.6 0.37]
+KS_comparison.Units = 'normalized'
+KS_comparison.Position = [0.3536 0.5157 0.6 0.37]
 
+table_data_KS = horzcat(new_names, num2cell(D));
+%header = horzcat('Empirical sources', vars);
+table_data_KS  = vertcat(header, table_data_KS);
 uit = uitable
 uit.Units = 'normalized';
 uit.Position = [0 0 1 1];
-uit.ColumnName = vars; 
-uit.Data = D;
-uit.RowName = new_names;
+%uit.ColumnName = vars; 
+uit.Data = table_data_KS;
+%uit.RowName = new_names;
 stop = 1
 set(KS_comparison, 'NumberTitle', 'off', 'Name', 'Kolmogorov-Smirnov D value of empirical and factorize sources');
 
